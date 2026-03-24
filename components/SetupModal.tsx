@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { Music2, Zap, X } from 'lucide-react'
+import { Check, Copy, Music2, Zap, X } from 'lucide-react'
 
 interface Props {
   onSave: (spotifyClientId: string, groqKey: string) => void
@@ -12,6 +12,17 @@ interface Props {
 export default function SetupModal({ onSave, initial, onClose }: Props) {
   const [clientId, setClientId] = useState(initial?.spotifyClientId ?? '')
   const [groqKey, setGroqKey] = useState(initial?.groqKey ?? '')
+  const [copied, setCopied] = useState(false)
+
+  const redirectUri = typeof window !== 'undefined'
+    ? `${window.location.origin}/callback`
+    : ''
+
+  const handleCopy = () => {
+    navigator.clipboard.writeText(redirectUri)
+    setCopied(true)
+    setTimeout(() => setCopied(false), 2000)
+  }
 
   const handleSave = () => {
     if (!clientId.trim() || !groqKey.trim()) return
@@ -46,11 +57,20 @@ export default function SetupModal({ onSave, initial, onClose }: Props) {
             placeholder="e.g. 9a8b7c6d5e4f3a2b1c0d..."
             className="w-full bg-[#1a1a2e] border border-white/10 rounded-lg px-4 py-2.5 text-sm text-white placeholder-slate-600 focus:outline-none focus:border-[#1DB954]/50"
           />
-          <p className="text-xs text-slate-500 mt-1.5">
-            Create one at{' '}
-            <span className="text-[#1DB954]">developer.spotify.com/dashboard</span>.
-            Set redirect URI to <code className="text-slate-300">http://localhost:3003/callback</code>
+          <p className="text-xs text-slate-500 mt-1.5 mb-2">
+            Create one at <span className="text-[#1DB954]">developer.spotify.com/dashboard</span>.
+            Add this exact redirect URI:
           </p>
+          <div className="flex items-center gap-2 bg-[#111827] border border-white/10 rounded-lg px-3 py-2">
+            <code className="text-xs text-slate-300 flex-1 truncate">{redirectUri}</code>
+            <button
+              type="button"
+              onClick={handleCopy}
+              className="text-slate-400 hover:text-white transition-colors shrink-0"
+            >
+              {copied ? <Check size={14} className="text-green-400" /> : <Copy size={14} />}
+            </button>
+          </div>
         </div>
 
         {/* Groq */}
