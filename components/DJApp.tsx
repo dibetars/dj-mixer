@@ -79,6 +79,7 @@ export default function DJApp() {
   const [trackFeatures, setTrackFeatures] = useState<(AudioFeatures | null)[]>([])
   const [selectedPlaylistId, setSelectedPlaylistId] = useState<string | null>(null)
   const [loadingTracks, setLoadingTracks] = useState(false)
+  const [tracksError, setTracksError] = useState<string | null>(null)
 
   const [suggestion, setSuggestion] = useState<MixSuggestion | null>(null)
   const [loadingSuggestion, setLoadingSuggestion] = useState(false)
@@ -225,6 +226,7 @@ export default function DJApp() {
     setLoadingTracks(true)
     setTracks([])
     setTrackFeatures([])
+    setTracksError(null)
     try {
       const token = await getToken()
       if (!token) return
@@ -244,8 +246,12 @@ export default function DJApp() {
         batch.forEach((f, j) => { features[i + j] = f })
       }
       setTrackFeatures(features)
-    } catch (e) {
-      console.error(e)
+    } catch (e: any) {
+      if (e?.message?.includes('403')) {
+        setTracksError("This playlist can't be loaded — Spotify restricts access to curated playlists (Daily Mixes, Discover Weekly, etc.). Try one of your own playlists.")
+      } else {
+        setTracksError('Failed to load tracks. Please try again.')
+      }
     } finally {
       setLoadingTracks(false)
     }
@@ -540,6 +546,7 @@ export default function DJApp() {
             playlists={playlists}
             tracks={tracks}
             loadingTracks={loadingTracks}
+            tracksError={tracksError}
             selectedPlaylistId={selectedPlaylistId}
             onSelectPlaylist={handleSelectPlaylist}
             onLoadToDeck={handleLoadToDeck}

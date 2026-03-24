@@ -15,6 +15,7 @@ interface Props {
   playlists: Playlist[]
   tracks: SpotifyTrack[]
   loadingTracks: boolean
+  tracksError: string | null
   selectedPlaylistId: string | null
   onSelectPlaylist: (id: string) => void
   onLoadToDeck: (track: SpotifyTrack, deck: 'A' | 'B') => void
@@ -22,7 +23,7 @@ interface Props {
 }
 
 export default function PlaylistPanel({
-  playlists, tracks, loadingTracks, selectedPlaylistId,
+  playlists, tracks, loadingTracks, tracksError, selectedPlaylistId,
   onSelectPlaylist, onLoadToDeck, suggestedTrackId,
 }: Props) {
   const [showPlaylists, setShowPlaylists] = useState(true)
@@ -67,7 +68,12 @@ export default function PlaylistPanel({
             <Loader2 size={16} className="animate-spin mr-2" /> Loading tracks…
           </div>
         )}
-        {!loadingTracks && tracks.length === 0 && (
+        {!loadingTracks && tracksError && (
+          <div className="flex items-center h-16 px-3 text-amber-400 text-xs">
+            ⚠ {tracksError}
+          </div>
+        )}
+        {!loadingTracks && !tracksError && tracks.length === 0 && (
           <div className="flex items-center justify-center h-16 text-slate-600 text-sm">
             Select a playlist to browse tracks
           </div>
