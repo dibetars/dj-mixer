@@ -230,8 +230,10 @@ export default function DJApp() {
       if (!token) return
       const data = await getPlaylistTracks(token, id)
       const trackList: SpotifyTrack[] = (data.items ?? [])
-        .map((i: { track: SpotifyTrack }) => i.track)
-        .filter(Boolean)
+        .map((i: { track: SpotifyTrack | null; is_local?: boolean }) => i.track)
+        .filter((t: SpotifyTrack | null): t is SpotifyTrack =>
+          !!t && !!(t as any).id && (t as any).type !== 'episode'
+        )
       setTracks(trackList)
 
       // Fetch audio features in batches of 50
