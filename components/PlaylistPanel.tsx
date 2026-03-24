@@ -54,7 +54,7 @@ export default function PlaylistPanel({
             }
             <div className="min-w-0">
               <p className="text-xs font-medium truncate">{pl.name}</p>
-              <p className="text-[10px] text-slate-600">{pl.tracks.total} tracks</p>
+              <p className="text-[10px] text-slate-600">{pl.tracks?.total ?? 0} tracks</p>
             </div>
           </button>
         ))}
