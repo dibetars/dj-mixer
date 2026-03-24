@@ -248,7 +248,7 @@ export default function DJApp() {
       setTrackFeatures(features)
     } catch (e: any) {
       if (e?.message?.includes('403')) {
-        setTracksError("This playlist can't be loaded — Spotify restricts access to curated playlists (Daily Mixes, Discover Weekly, etc.). Try one of your own playlists.")
+        setTracksError("Access denied — your Spotify session may be expired or missing required permissions. Click \"Reconnect Spotify\" in the header to re-authenticate.")
       } else {
         setTracksError('Failed to load tracks. Please try again.')
       }
@@ -348,6 +348,17 @@ export default function DJApp() {
     setDeckB({ ...DEFAULT_DECK })
   }
 
+  function handleReconnectSpotify() {
+    // Clear all tokens to force a fresh OAuth flow with full scopes
+    localStorage.removeItem('spotify_access_token')
+    localStorage.removeItem('spotify_refresh_token')
+    localStorage.removeItem('spotify_token_expiry')
+    setUser(null)
+    setPlaylists([])
+    setTracks([])
+    handleConnect()
+  }
+
   // ── Save config ───────────────────────────────────────────────────────────
 
   function handleSaveConfig(clientId: string, groqKey: string) {
@@ -439,6 +450,13 @@ export default function DJApp() {
                   <img src={user.images[0].url} alt="" className="w-6 h-6 rounded-full" />
                 )}
                 <span className="text-sm text-slate-400">{user?.display_name}</span>
+                <button
+                  onClick={handleReconnectSpotify}
+                  title="Re-authenticate Spotify to fix permission errors"
+                  className="text-xs px-2 py-1 rounded-lg bg-white/5 text-slate-400 hover:bg-[#1DB954]/20 hover:text-[#1DB954] font-medium transition-colors"
+                >
+                  Reconnect
+                </button>
               </div>
             )}
             <button
