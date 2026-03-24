@@ -121,7 +121,7 @@ export async function getPlaylists(token: string, limit = 50) {
 }
 
 export async function getPlaylistTracks(token: string, playlistId: string, limit = 50) {
-  return spotifyFetch(`/playlists/${playlistId}/tracks?limit=${limit}&fields=items(track(id,name,artists,album,duration_ms,uri,preview_url))`, token)
+  return spotifyFetch(`/playlists/${playlistId}/tracks?limit=${limit}`, token)
 }
 
 export async function getAudioFeatures(token: string, trackIds: string[]): Promise<AudioFeatures[]> {
