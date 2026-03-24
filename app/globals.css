@@ -1,0 +1,114 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --deck-a: #7c3aed;
+  --deck-b: #0891b2;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  background: #050508;
+  color: #e2e8f0;
+  font-family: 'Inter', system-ui, sans-serif;
+  overflow: hidden;
+}
+
+/* custom scrollbar */
+::-webkit-scrollbar { width: 4px; height: 4px; }
+::-webkit-scrollbar-track { background: #111; }
+::-webkit-scrollbar-thumb { background: #333; border-radius: 2px; }
+
+/* vinyl spin */
+@keyframes vinyl-spin {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
+.vinyl-spin { animation: vinyl-spin 2s linear infinite; }
+.vinyl-paused { animation-play-state: paused; }
+
+/* glow effects */
+.glow-a { box-shadow: 0 0 20px rgba(124, 58, 237, 0.4); }
+.glow-b { box-shadow: 0 0 20px rgba(8, 145, 178, 0.4); }
+
+/* range input styling */
+input[type='range'] {
+  -webkit-appearance: none;
+  appearance: none;
+  background: transparent;
+  cursor: pointer;
+}
+input[type='range']::-webkit-slider-track {
+  background: #1e1e2e;
+  height: 4px;
+  border-radius: 2px;
+}
+input[type='range'].deck-a::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 14px;
+  height: 14px;
+  background: var(--deck-a);
+  border-radius: 50%;
+  border: 2px solid #fff;
+}
+input[type='range'].deck-b::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 14px;
+  height: 14px;
+  background: var(--deck-b);
+  border-radius: 50%;
+  border: 2px solid #fff;
+}
+input[type='range'].crossfader::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 18px;
+  height: 24px;
+  background: #e2e8f0;
+  border-radius: 3px;
+}
+input[type='range'].crossfader::-webkit-slider-track {
+  background: linear-gradient(to right, var(--deck-a), #1e1e2e, var(--deck-b));
+  height: 6px;
+}
+
+/* progress bar */
+input[type='range'].progress::-webkit-slider-track {
+  height: 3px;
+  background: #2a2a3e;
+}
+input[type='range'].progress.deck-a::-webkit-slider-thumb {
+  width: 10px;
+  height: 10px;
+}
+input[type='range'].progress.deck-b::-webkit-slider-thumb {
+  width: 10px;
+  height: 10px;
+  background: var(--deck-b);
+}
+
+/* knob */
+.knob {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 30% 30%, #2a2a3e, #111);
+  border: 2px solid #2a2a3e;
+  position: relative;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.knob::after {
+  content: '';
+  width: 3px;
+  height: 12px;
+  background: #e2e8f0;
+  border-radius: 2px;
+  position: absolute;
+  top: 4px;
+}

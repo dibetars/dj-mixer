@@ -1,0 +1,176 @@
+'use client'
+
+import { useEffect, useRef, useState } from 'react'
+import { Pause, Play, SkipBack, Volume2 } from 'lucide-react'
+import { AudioFeatures, SpotifyTrack, keyName, msToTime } from '@/lib/spotify'
+
+interface Props {
+  side: 'A' | 'B'
+  track: SpotifyTrack | null
+  features: AudioFeatures | null
+  isPlaying: boolean
+  position: number // ms
+  duration: number // ms
+  volume: number // 0-100
+  onPlay: () => void
+  onPause: () => void
+  onSeek: (ms: number) => void
+  onVolumeChange: (v: number) => void
+  onRestart: () => void
+}
+
+const SIDE_COLORS = {
+  A: { accent: '#7c3aed', glow: 'glow-a', text: 'text-violet-400', border: 'border-violet-700/40', track: 'deck-a', bg: 'from-violet-900/20' },
+  B: { accent: '#0891b2', glow: 'glow-b', text: 'text-cyan-400', border: 'border-cyan-700/40', track: 'deck-b', bg: 'from-cyan-900/20' },
+}
+
+export default function Deck({
+  side, track, features, isPlaying, position, duration, volume,
+  onPlay, onPause, onSeek, onVolumeChange, onRestart,
+}: Props) {
+  const c = SIDE_COLORS[side]
+  const [vinylRotation, setVinylRotation] = useState(0)
+  const rafRef = useRef<number>()
+  const lastTimeRef = useRef<number>()
+
+  useEffect(() => {
+    if (isPlaying) {
+      const spin = (ts: number) => {
+        if (lastTimeRef.current) {
+          const delta = ts - lastTimeRef.current
+          setVinylRotation(r => r + (delta / 1000) * 33.3 * (360 / 60))
+        }
+        lastTimeRef.current = ts
+        rafRef.current = requestAnimationFrame(spin)
+      }
+      rafRef.current = requestAnimationFrame(spin)
+    } else {
+      if (rafRef.current) cancelAnimationFrame(rafRef.current)
+      lastTimeRef.current = undefined
+    }
+    return () => { if (rafRef.current) cancelAnimationFrame(rafRef.current) }
+  }, [isPlaying])
+
+  const albumArt = track?.album?.images?.[0]?.url
+  const progress = duration > 0 ? (position / duration) * 100 : 0
+
+  return (
+    <div className={`bg-gradient-to-b ${c.bg} to-transparent rounded-2xl border ${c.border} p-5 flex flex-col gap-4 h-full`}>
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <span className={`text-xs font-bold tracking-widest uppercase ${c.text} bg-white/5 px-2 py-1 rounded`}>
+          Deck {side}
+        </span>
+        {features && (
+          <div className="flex gap-3 text-xs text-slate-400">
+            <span className="font-mono">{Math.round(features.tempo)} BPM</span>
+            <span>{keyName(features.key, features.mode)}</span>
+            <span>E {Math.round(features.energy * 100)}%</span>
+          </div>
+        )}
+      </div>
+
+      {/* Vinyl */}
+      <div className="flex items-center justify-center py-2">
+        <div className="relative">
+          {/* outer ring */}
+          <div
+            className={`w-36 h-36 rounded-full ${c.glow}`}
+            style={{
+              background: `conic-gradient(from 0deg, #1a1a2e, #0d0d1a, #1a1a2e, #0d0d1a)`,
+              transform: `rotate(${vinylRotation}deg)`,
+              transition: isPlaying ? 'none' : 'transform 0.3s',
+            }}
+          >
+            {/* grooves */}
+            {[30, 42, 54, 66].map(r => (
+              <div
+                key={r}
+                className="absolute inset-0 rounded-full"
+                style={{
+                  border: `1px solid rgba(255,255,255,0.04)`,
+                  margin: `${(72 - r)}px`,
+                }}
+              />
+            ))}
+          </div>
+          {/* album art center */}
+          <div
+            className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-16 h-16 rounded-full overflow-hidden"
+            style={{ transform: `translate(-50%, -50%) rotate(${-vinylRotation}deg)` }}
+          >
+            {albumArt
+              ? <img src={albumArt} alt="album" className="w-full h-full object-cover" />
+              : <div className="w-full h-full" style={{ background: c.accent }} />
+            }
+          </div>
+          {/* center dot */}
+          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-3 h-3 rounded-full bg-[#050508] z-10" />
+        </div>
+      </div>
+
+      {/* Track info */}
+      <div className="text-center min-h-[48px]">
+        {track ? (
+          <>
+            <p className="text-white font-semibold text-sm truncate">{track.name}</p>
+            <p className="text-slate-400 text-xs truncate">{track.artists.map(a => a.name).join(', ')}</p>
+          </>
+        ) : (
+          <p className="text-slate-600 text-sm">No track loaded</p>
+        )}
+      </div>
+
+      {/* Progress */}
+      <div>
+        <input
+          type="range"
+          min={0}
+          max={duration || 100}
+          value={position}
+          onChange={e => onSeek(Number(e.target.value))}
+          className={`progress ${c.track} w-full`}
+          disabled={!track}
+        />
+        <div className="flex justify-between text-xs text-slate-500 mt-1 font-mono">
+          <span>{msToTime(position)}</span>
+          <span>{msToTime(duration)}</span>
+        </div>
+      </div>
+
+      {/* Controls */}
+      <div className="flex items-center justify-center gap-4">
+        <button
+          onClick={onRestart}
+          disabled={!track}
+          className="w-8 h-8 flex items-center justify-center text-slate-400 hover:text-white disabled:opacity-30 transition-colors"
+        >
+          <SkipBack size={16} />
+        </button>
+        <button
+          onClick={isPlaying ? onPause : onPlay}
+          disabled={!track}
+          className="w-12 h-12 rounded-full flex items-center justify-center disabled:opacity-30 transition-all active:scale-95"
+          style={{ background: track ? c.accent : '#1a1a2e' }}
+        >
+          {isPlaying ? <Pause size={20} fill="white" stroke="none" /> : <Play size={20} fill="white" stroke="none" className="ml-0.5" />}
+        </button>
+        <div className="w-8" />
+      </div>
+
+      {/* Volume */}
+      <div className="flex items-center gap-2">
+        <Volume2 size={14} className="text-slate-500 shrink-0" />
+        <input
+          type="range"
+          min={0}
+          max={100}
+          value={volume}
+          onChange={e => onVolumeChange(Number(e.target.value))}
+          className={`${c.track} flex-1`}
+        />
+        <span className="text-xs text-slate-500 font-mono w-7 text-right">{volume}</span>
+      </div>
+    </div>
+  )
+}
