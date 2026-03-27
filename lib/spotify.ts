@@ -66,6 +66,7 @@ export function buildAuthUrl(clientId: string, redirectUri: string, challenge: s
     code_challenge: challenge,
     state,
     scope: SPOTIFY_SCOPES,
+    show_dialog: 'true',
   })
   return `https://accounts.spotify.com/authorize?${params}`
 }
@@ -121,13 +122,18 @@ export async function getPlaylists(token: string, limit = 50) {
 }
 
 export async function getPlaylistTracks(token: string, playlistId: string, limit = 50) {
-  return spotifyFetch(`/playlists/${playlistId}/tracks?limit=${limit}`, token)
+  return spotifyFetch(`/playlists/${playlistId}/tracks?limit=${limit}&market=from_token`, token)
 }
 
-export async function getAudioFeatures(token: string, trackIds: string[]): Promise<AudioFeatures[]> {
+export async function getAudioFeatures(token: string, trackIds: string[]): Promise<(AudioFeatures | null)[]> {
   if (!trackIds.length) return []
-  const data = await spotifyFetch(`/audio-features?ids=${trackIds.join(',')}`, token)
-  return data.audio_features ?? []
+  try {
+    const data = await spotifyFetch(`/audio-features?ids=${trackIds.join(',')}`, token)
+    return data.audio_features ?? []
+  } catch {
+    // Audio features API may be restricted or deprecated for this app
+    return trackIds.map(() => null)
+  }
 }
 
 export async function transferPlayback(token: string, deviceId: string) {

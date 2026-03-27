@@ -237,8 +237,9 @@ export default function DJApp() {
           !!t && !!(t as any).id && (t as any).type !== 'episode'
         )
       setTracks(trackList)
+      setLoadingTracks(false)
 
-      // Fetch audio features in batches of 50
+      // Fetch audio features in batches of 50 (may fail if Spotify restricted this API)
       const ids = trackList.map(t => t.id).filter(Boolean)
       const features: (AudioFeatures | null)[] = Array(trackList.length).fill(null)
       for (let i = 0; i < ids.length; i += 50) {
@@ -248,7 +249,7 @@ export default function DJApp() {
       setTrackFeatures(features)
     } catch (e: any) {
       if (e?.message?.includes('403')) {
-        setTracksError("Access denied — your Spotify session may be expired or missing required permissions. Click \"Reconnect Spotify\" in the header to re-authenticate.")
+        setTracksError("Access denied — click \"Reconnect\" next to your username to re-authenticate with Spotify.")
       } else {
         setTracksError('Failed to load tracks. Please try again.')
       }
