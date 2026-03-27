@@ -229,29 +229,35 @@ export default function DJApp() {
     setTracksError(null)
     try {
       const token = await getToken()
-      if (!token) return
-      const data = await getPlaylistTracks(token, id)
-      const trackList: SpotifyTrack[] = (data.items ?? [])
-        .map((i: { track: SpotifyTrack | null; is_local?: boolean }) => i.track)
-        .filter((t: SpotifyTrack | null): t is SpotifyTrack =>
-          !!t && !!(t as any).id && (t as any).type !== 'episode'
-        )
-      setTracks(trackList)
-      setLoadingTracks(false)
-
-      // Fetch audio features in batches of 50 (may fail if Spotify restricted this API)
-      const ids = trackList.map(t => t.id).filter(Boolean)
-      const features: (AudioFeatures | null)[] = Array(trackList.length).fill(null)
-      for (let i = 0; i < ids.length; i += 50) {
-        const batch = await getAudioFeatures(token, ids.slice(i, i + 50))
-        batch.forEach((f, j) => { features[i + j] = f })
+      if (!token) {
+        setTracksError('Spotify session expired — click Reconnect to re-authenticate.')
+        return
       }
-      setTrackFeatures(features)
+      const data = await getPlaylistTracks(token, id)
+      // Filter out nulls (deleted tracks) and podcast episodes; keep local tracks
+      const trackList: SpotifyTrack[] = (data.items ?? [])
+        .map((i: any) => i.track)
+        .filter((t: any): t is SpotifyTrack => !!t && t.type !== 'episode')
+      setTracks(trackList)
+
+      // Fetch audio features (gracefully — this API is restricted for many apps)
+      if (trackList.length > 0) {
+        const ids = trackList.map((t: SpotifyTrack) => t.id).filter(Boolean)
+        const features: (AudioFeatures | null)[] = Array(trackList.length).fill(null)
+        for (let i = 0; i < ids.length; i += 50) {
+          const batch = await getAudioFeatures(token, ids.slice(i, i + 50))
+          batch.forEach((f, j) => { features[i + j] = f })
+        }
+        setTrackFeatures(features)
+      }
     } catch (e: any) {
-      if (e?.message?.includes('403')) {
-        setTracksError("Access denied — click \"Reconnect\" next to your username to re-authenticate with Spotify.")
+      const msg = e?.message ?? ''
+      if (msg.includes('403')) {
+        setTracksError('Access denied — click Reconnect next to your username to re-authenticate with Spotify.')
+      } else if (msg.includes('401')) {
+        setTracksError('Session expired — click Reconnect to sign in again.')
       } else {
-        setTracksError('Failed to load tracks. Please try again.')
+        setTracksError(`Failed to load tracks: ${msg || 'unknown error'}`)
       }
     } finally {
       setLoadingTracks(false)
