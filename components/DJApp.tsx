@@ -74,6 +74,7 @@ export default function DJApp() {
   const [deckB, setDeckB] = useState<DeckState>({ ...DEFAULT_DECK })
   const [crossfader, setCrossfader] = useState(50) // 0=A, 100=B
 
+  const [grantedScopes, setGrantedScopes] = useState<string>('')
   const [playlists, setPlaylists] = useState<{ id: string; name: string; images: { url: string }[]; tracks: { total: number } }[]>([])
   const [tracks, setTracks] = useState<SpotifyTrack[]>([])
   const [trackFeatures, setTrackFeatures] = useState<(AudioFeatures | null)[]>([])
@@ -131,6 +132,12 @@ export default function DJApp() {
       return
     }
     setConfig({ spotifyClientId: clientId, groqKey })
+
+    const scopes = localStorage.getItem('spotify_granted_scopes') ?? ''
+    setGrantedScopes(scopes)
+    if (scopes && !scopes.includes('playlist-read-private')) {
+      console.warn('[DJ Mixer] Token missing playlist-read-private scope. Granted:', scopes)
+    }
 
     getToken().then(token => {
       if (!token) { setShowSetup(true); return }
@@ -488,6 +495,14 @@ export default function DJApp() {
             )}
           </div>
         </header>
+
+        {/* Scope warning banner */}
+        {grantedScopes && !grantedScopes.includes('playlist-read-private') && (
+          <div className="shrink-0 px-5 py-2 bg-red-900/40 border-b border-red-500/30 text-xs text-red-300 flex items-center gap-2">
+            <span>⚠</span>
+            <span>Missing <code>playlist-read-private</code> scope — go to <strong>spotify.com/account/apps</strong>, revoke this app, then click <strong>Reconnect</strong>.</span>
+          </div>
+        )}
 
         {/* Main layout */}
         <div className="flex flex-1 overflow-hidden gap-0">

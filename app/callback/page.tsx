@@ -31,9 +31,12 @@ export default function Callback() {
           )
           return
         }
+        // Log granted scopes so we can verify playlist-read-private is included
+        console.log('[DJ Mixer] Granted scopes:', tokens.scope)
         localStorage.setItem('spotify_access_token', tokens.access_token)
         localStorage.setItem('spotify_refresh_token', tokens.refresh_token ?? '')
         localStorage.setItem('spotify_token_expiry', String(Date.now() + (tokens.expires_in ?? 3600) * 1000))
+        localStorage.setItem('spotify_granted_scopes', tokens.scope ?? '')
         sessionStorage.removeItem('pkce_verifier')
         window.location.href = '/'
       })
