@@ -25,9 +25,15 @@ export default function Callback() {
 
     exchangeCode(code, verifier, clientId, redirectUri)
       .then((tokens) => {
+        if (!tokens.access_token) {
+          window.location.href = '/?auth_error=' + encodeURIComponent(
+            tokens.error_description ?? tokens.error ?? 'no_access_token'
+          )
+          return
+        }
         localStorage.setItem('spotify_access_token', tokens.access_token)
-        localStorage.setItem('spotify_refresh_token', tokens.refresh_token)
-        localStorage.setItem('spotify_token_expiry', String(Date.now() + tokens.expires_in * 1000))
+        localStorage.setItem('spotify_refresh_token', tokens.refresh_token ?? '')
+        localStorage.setItem('spotify_token_expiry', String(Date.now() + (tokens.expires_in ?? 3600) * 1000))
         sessionStorage.removeItem('pkce_verifier')
         window.location.href = '/'
       })

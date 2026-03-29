@@ -92,10 +92,14 @@ export default function DJApp() {
   // ── Token management ──────────────────────────────────────────────────────
 
   const getToken = useCallback(async (): Promise<string | null> => {
-    const stored = localStorage.getItem('spotify_access_token')
+    // localStorage coerces undefined/null to the strings "undefined"/"null" — reject those
+    const clean = (v: string | null) =>
+      v && v !== 'null' && v !== 'undefined' ? v : null
+
+    const stored = clean(localStorage.getItem('spotify_access_token'))
     const expiry = Number(localStorage.getItem('spotify_token_expiry') ?? 0)
-    const refresh = localStorage.getItem('spotify_refresh_token')
-    const clientId = localStorage.getItem('spotify_client_id')
+    const refresh = clean(localStorage.getItem('spotify_refresh_token'))
+    const clientId = clean(localStorage.getItem('spotify_client_id'))
 
     if (stored && Date.now() < expiry - 30_000) {
       tokenRef.current = stored
@@ -104,11 +108,13 @@ export default function DJApp() {
     if (refresh && clientId) {
       try {
         const tokens = await refreshAccessToken(clientId, refresh)
-        localStorage.setItem('spotify_access_token', tokens.access_token)
-        localStorage.setItem('spotify_token_expiry', String(Date.now() + tokens.expires_in * 1000))
-        if (tokens.refresh_token) localStorage.setItem('spotify_refresh_token', tokens.refresh_token)
-        tokenRef.current = tokens.access_token
-        return tokens.access_token
+        if (tokens.access_token) {
+          localStorage.setItem('spotify_access_token', tokens.access_token)
+          localStorage.setItem('spotify_token_expiry', String(Date.now() + tokens.expires_in * 1000))
+          if (tokens.refresh_token) localStorage.setItem('spotify_refresh_token', tokens.refresh_token)
+          tokenRef.current = tokens.access_token
+          return tokens.access_token
+        }
       } catch { /* fall through */ }
     }
     return null
