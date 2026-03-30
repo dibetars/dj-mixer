@@ -230,7 +230,10 @@ export default function DJApp() {
   async function loadPlaylists(token: string) {
     try {
       const data = await getPlaylists(token)
-      setPlaylists(data.items ?? [])
+      // Filter out Spotify-owned algorithmic playlists (Discover Weekly, Daily Mixes, etc.)
+      // These appear in /me/playlists but return 403 on /playlists/{id}/tracks
+      const items = (data.items ?? []).filter((pl: any) => pl?.owner?.id !== 'spotify')
+      setPlaylists(items)
     } catch { /* ignore */ }
   }
 
@@ -266,7 +269,7 @@ export default function DJApp() {
     } catch (e: any) {
       const msg = e?.message ?? ''
       if (msg.includes('403')) {
-        setTracksError('Access denied — click Reconnect next to your username to re-authenticate with Spotify.')
+        setTracksError(`Access denied (403)${msg.includes('—') ? ': ' + msg.split('—')[1].trim() : ''} — this playlist may be restricted. Try another playlist or click Reconnect.`)
       } else if (msg.includes('401')) {
         setTracksError('Session expired — click Reconnect to sign in again.')
       } else {

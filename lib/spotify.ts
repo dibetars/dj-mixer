@@ -109,7 +109,16 @@ async function spotifyFetch(path: string, token: string) {
   const res = await fetch(`https://api.spotify.com/v1${path}`, {
     headers: { Authorization: `Bearer ${token}` },
   })
-  if (!res.ok) throw new Error(`Spotify API error ${res.status}: ${path}`)
+  if (!res.ok) {
+    let detail = ''
+    try {
+      const body = await res.json()
+      detail = body?.error?.message ?? body?.error_description ?? JSON.stringify(body)
+    } catch {
+      try { detail = await res.text() } catch { /* ignore */ }
+    }
+    throw new Error(`Spotify API error ${res.status}: ${path}${detail ? ` — ${detail}` : ''}`)
+  }
   return res.json()
 }
 
