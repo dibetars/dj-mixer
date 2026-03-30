@@ -75,7 +75,7 @@ export default function DJApp() {
   const [crossfader, setCrossfader] = useState(50) // 0=A, 100=B
 
   const [grantedScopes, setGrantedScopes] = useState<string>('')
-  const [playlists, setPlaylists] = useState<{ id: string; name: string; images: { url: string }[]; tracks: { total: number } }[]>([])
+  const [playlists, setPlaylists] = useState<{ id: string; name: string; images: { url: string }[]; tracks?: { total: number }; items?: { total: number } }[]>([])
   const [tracks, setTracks] = useState<SpotifyTrack[]>([])
   const [trackFeatures, setTrackFeatures] = useState<(AudioFeatures | null)[]>([])
   const [selectedPlaylistId, setSelectedPlaylistId] = useState<string | null>(null)
@@ -250,9 +250,9 @@ export default function DJApp() {
         return
       }
       const data = await getPlaylistTracks(token, id)
-      // Filter out nulls (deleted tracks) and podcast episodes; keep local tracks
+      // New endpoint returns i.item (old deprecated endpoint used i.track)
       const trackList: SpotifyTrack[] = (data.items ?? [])
-        .map((i: any) => i.track)
+        .map((i: any) => i.item ?? i.track)
         .filter((t: any): t is SpotifyTrack => !!t && t.type !== 'episode')
       setTracks(trackList)
 

@@ -8,7 +8,8 @@ interface Playlist {
   id: string
   name: string
   images: { url: string }[]
-  tracks: { total: number }
+  tracks?: { total: number }   // legacy field name
+  items?: { total: number }    // current field name
 }
 
 interface Props {
@@ -55,7 +56,7 @@ export default function PlaylistPanel({
             }
             <div className="min-w-0">
               <p className="text-xs font-medium truncate">{pl.name}</p>
-              <p className="text-[10px] text-slate-600">{pl.tracks?.total ?? 0} tracks</p>
+              <p className="text-[10px] text-slate-600">{pl.tracks?.total ?? pl.items?.total ?? 0} tracks</p>
             </div>
           </button>
         ))}

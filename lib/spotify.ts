@@ -127,6 +127,7 @@ export async function getMe(token: string) {
 }
 
 export async function getPlaylists(token: string, limit = 50) {
+  // tracks field renamed to items in simplified playlist objects
   return spotifyFetch(
     `/me/playlists?limit=${limit}&fields=items(id,name,images,owner(id),tracks(total))`,
     token
@@ -134,8 +135,10 @@ export async function getPlaylists(token: string, limit = 50) {
 }
 
 export async function getPlaylistTracks(token: string, playlistId: string, limit = 50) {
+  // Use the current endpoint /items (not deprecated /tracks)
+  // Response shape: { items: [{ item: TrackObject }] }
   return spotifyFetch(
-    `/playlists/${playlistId}/tracks?limit=${limit}&fields=items(track(id,name,type,artists(name),album(name,images),duration_ms,uri,preview_url))`,
+    `/playlists/${playlistId}/items?limit=${limit}&fields=items(item(id,name,type,artists(name),album(name,images),duration_ms,uri,preview_url))`,
     token
   )
 }
