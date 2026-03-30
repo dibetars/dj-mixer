@@ -171,6 +171,33 @@ export default function Deck({
         />
         <span className="text-xs text-slate-500 font-mono w-7 text-right">{volume}</span>
       </div>
+
+      {/* Hot Cue Pads */}
+      {track && duration > 0 && (
+        <div>
+          <p className="text-[9px] text-slate-600 uppercase tracking-wider mb-1">Hot Cues</p>
+          <div className="grid grid-cols-4 gap-1">
+            {Array.from({ length: 8 }, (_, i) => {
+              const padMs = Math.floor((i / 8) * duration)
+              const nextMs = Math.floor(((i + 1) / 8) * duration)
+              const active = position >= padMs && (i === 7 || position < nextMs)
+              return (
+                <button
+                  key={i}
+                  onClick={() => onSeek(padMs)}
+                  title={`Cue ${i + 1} — ${msToTime(padMs)}`}
+                  className={`h-7 rounded text-[9px] font-bold tracking-wider transition-all active:scale-95 ${
+                    active ? 'text-white' : 'bg-white/5 text-slate-500 hover:bg-white/10 hover:text-white'
+                  }`}
+                  style={active ? { backgroundColor: c.accent + '70' } : undefined}
+                >
+                  {i + 1}
+                </button>
+              )
+            })}
+          </div>
+        </div>
+      )}
     </div>
   )
 }

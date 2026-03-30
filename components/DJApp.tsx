@@ -86,9 +86,19 @@ export default function DJApp() {
   const [loadingSuggestion, setLoadingSuggestion] = useState(false)
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([])
   const [loadingChat, setLoadingChat] = useState(false)
+  const [autoDJ, setAutoDJ] = useState(false)
+  const [autoSuggestTick, setAutoSuggestTick] = useState(0)
 
   const tokenRef = useRef<string | null>(null)
   const positionTimerRef = useRef<NodeJS.Timeout>()
+  const autoDJRef = useRef(false)
+  const crossfaderRef = useRef(50)
+  const autoFadingRef = useRef(false)
+  const fadeIntervalRef = useRef<NodeJS.Timeout | null>(null)
+  const deckARef = useRef<DeckState>({ ...DEFAULT_DECK })
+  const deckBRef = useRef<DeckState>({ ...DEFAULT_DECK })
+  const autoSuggestRef = useRef<string | null>(null)
+  const autoFadeRef = useRef<string | null>(null)
 
   // ── Token management ──────────────────────────────────────────────────────
 
@@ -201,25 +211,85 @@ export default function DJApp() {
     }
   }
 
-  // ── Position ticker ───────────────────────────────────────────────────────
+  // ── Position ticker + Auto DJ ─────────────────────────────────────────────
 
   useEffect(() => {
     clearInterval(positionTimerRef.current)
     positionTimerRef.current = setInterval(() => {
-      if (deckA.isPlaying) setDeckA(d => ({ ...d, position: Math.min(d.position + 500, d.duration) }))
-      if (deckB.isPlaying) setDeckB(d => ({ ...d, position: Math.min(d.position + 500, d.duration) }))
+      const dA = deckARef.current, dB = deckBRef.current
+      if (dA.isPlaying) setDeckA(d => ({ ...d, position: Math.min(d.position + 500, d.duration) }))
+      if (dB.isPlaying) setDeckB(d => ({ ...d, position: Math.min(d.position + 500, d.duration) }))
+
+      if (!autoDJRef.current || autoFadingRef.current) return
+      const playing = dA.isPlaying ? 'A' : dB.isPlaying ? 'B' : null
+      if (!playing) return
+      const active = playing === 'A' ? dA : dB
+      if (!active.track || active.duration === 0) return
+      const remaining = active.duration - active.position
+      const tid = active.track.id
+
+      // 30s out: request next suggestion
+      if (remaining < 30_000 && remaining > 0 && autoSuggestRef.current !== tid) {
+        autoSuggestRef.current = tid
+        setAutoSuggestTick(t => t + 1)
+      }
+      // 8s out: smooth crossfade + start other deck
+      if (remaining < 8_000 && remaining > 0 && autoFadeRef.current !== tid) {
+        autoFadeRef.current = tid
+        autoFadingRef.current = true
+        const to = playing === 'A' ? 100 : 0
+        const from = crossfaderRef.current; const steps = 14; let step = 0
+        if (fadeIntervalRef.current) clearInterval(fadeIntervalRef.current)
+        fadeIntervalRef.current = setInterval(() => {
+          step++
+          const v = Math.round(from + (to - from) * (step / steps))
+          setCrossfader(v); crossfaderRef.current = v
+          if (step >= steps) {
+            clearInterval(fadeIntervalRef.current!); fadeIntervalRef.current = null; autoFadingRef.current = false
+          }
+        }, 7000 / steps)
+        const other = playing === 'A' ? dB : dA
+        if (other.track && !other.isPlaying && other.deviceId && tokenRef.current) {
+          play(tokenRef.current, other.deviceId, [other.track.uri], 0).catch(() => {})
+          const setter = playing === 'A' ? setDeckB : setDeckA
+          setter(d => ({ ...d, isPlaying: true, position: 0 }))
+        }
+      }
     }, 500)
     return () => clearInterval(positionTimerRef.current)
-  }, [deckA.isPlaying, deckB.isPlaying])
+  }, [deckA.isPlaying, deckB.isPlaying]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  // ── Crossfader → volume ───────────────────────────────────────────────────
+  // ── Crossfader → volume (fix: include players in deps to avoid stale closure)
 
   useEffect(() => {
     const volA = Math.round(((100 - crossfader) / 100) * deckA.volume)
     const volB = Math.round((crossfader / 100) * deckB.volume)
     if (deckA.player) deckA.player.setVolume(volA / 100)
     if (deckB.player) deckB.player.setVolume(volB / 100)
-  }, [crossfader]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [crossfader, deckA.player, deckB.player, deckA.volume, deckB.volume])
+
+  // ── Sync refs ─────────────────────────────────────────────────────────────
+
+  useEffect(() => { autoDJRef.current = autoDJ }, [autoDJ])
+  useEffect(() => { crossfaderRef.current = crossfader }, [crossfader])
+  useEffect(() => { deckARef.current = deckA }, [deckA])
+  useEffect(() => { deckBRef.current = deckB }, [deckB])
+
+  // ── Auto DJ: trigger AI suggestion when tick fires ─────────────────────────
+
+  useEffect(() => {
+    if (autoSuggestTick > 0) handleGetSuggestion()
+  }, [autoSuggestTick]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // ── Auto DJ: load suggestion to free deck ─────────────────────────────────
+
+  useEffect(() => {
+    if (!autoDJ || !suggestion?.nextTrack) return
+    const freeDeck = deckA.isPlaying ? 'B' : deckB.isPlaying ? 'A' : null
+    if (!freeDeck) return
+    const freeState = freeDeck === 'A' ? deckA : deckB
+    if (freeState.track?.id !== suggestion.nextTrack.id) handleLoadToDeck(suggestion.nextTrack, freeDeck)
+  }, [suggestion?.nextTrack?.id, autoDJ]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Data loaders ──────────────────────────────────────────────────────────
 
@@ -507,8 +577,9 @@ export default function DJApp() {
           </div>
         )}
 
-        {/* Main layout */}
-        <div className="flex flex-1 overflow-hidden gap-0">
+        {/* Main layout: decks+AI top half, playlist bottom half */}
+        <div className="flex flex-1 flex-col overflow-hidden min-h-0">
+        <div className="flex flex-1 overflow-hidden gap-0 min-h-0">
           {/* Deck A */}
           <div className="w-64 shrink-0 p-3">
             <Deck
@@ -544,9 +615,25 @@ export default function DJApp() {
                 onChange={e => setCrossfader(Number(e.target.value))}
                 className="crossfader w-full"
               />
-              <div className="flex justify-between text-[10px] text-slate-600 mt-1 font-mono">
-                <span>{100 - crossfader}%</span>
-                <span>{crossfader}%</span>
+              <div className="flex items-center justify-between mt-1">
+                <span className="text-[10px] text-slate-600 font-mono">{100 - crossfader}%</span>
+                <div className="flex items-center gap-2">
+                  {autoDJ && (deckA.isPlaying || deckB.isPlaying) && (() => {
+                    const active = deckA.isPlaying ? deckA : deckB
+                    const rem = active.duration - active.position
+                    return rem < 30_000 && rem > 0 ? (
+                      <span className="text-[10px] text-yellow-400 font-mono animate-pulse">⟳ {Math.ceil(rem / 1000)}s</span>
+                    ) : null
+                  })()}
+                  <button
+                    onClick={() => setAutoDJ(a => !a)}
+                    className={`flex items-center gap-1 text-[10px] font-medium px-2 py-0.5 rounded-full transition-colors ${autoDJ ? 'bg-green-400/20 text-green-400' : 'bg-white/5 text-slate-500 hover:text-white'}`}
+                  >
+                    <span className={`w-1.5 h-1.5 rounded-full ${autoDJ ? 'bg-green-400 animate-pulse' : 'bg-slate-600'}`} />
+                    Auto DJ
+                  </button>
+                </div>
+                <span className="text-[10px] text-slate-600 font-mono">{crossfader}%</span>
               </div>
             </div>
 
@@ -589,8 +676,8 @@ export default function DJApp() {
           </div>
         </div>
 
-        {/* Playlist panel */}
-        <div className="h-52 shrink-0 border-t border-white/5 px-3 py-3">
+        {/* Playlist panel: bottom half */}
+        <div className="flex-1 border-t border-white/5 px-3 py-3 overflow-hidden min-h-0">
           <PlaylistPanel
             playlists={playlists}
             tracks={tracks}
@@ -601,6 +688,7 @@ export default function DJApp() {
             onLoadToDeck={handleLoadToDeck}
             suggestedTrackId={suggestion?.nextTrack?.id ?? null}
           />
+        </div>
         </div>
       </div>
     </>
